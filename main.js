@@ -3,10 +3,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // 1. Scene, Camera, Renderer 설정
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x141928); // p5.js의 background(20, 25, 40)와 유사
+scene.background = new THREE.Color(0x141928);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(150, 200, 400); // 카메라 위치 조정
+camera.position.set(150, 200, 400);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -19,6 +19,7 @@ controls.dampingFactor = 0.05;
 controls.screenSpacePanning = false;
 controls.minDistance = 50;
 controls.maxDistance = 800;
+controls.zoomSpeed = 1.5; // 줌 속도 증가
 
 // 3. 조명 추가
 const ambientLight = new THREE.AmbientLight(0xcccccc, 0.5);
@@ -28,13 +29,18 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(-1, 1, 1);
 scene.add(directionalLight);
 
-// 4. 데이터 로드 및 3D 객체 생성
+// 4. Raycaster 및 UI 요소 설정 (마우스오버용)
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+let intersectedObject = null;
+
+// 5. 데이터 로드 및 3D 객체 생성
 const githubUsername = "Turtle-Hwan";
 const url = `https://github-contributions-api.jogruber.de/v4/${githubUsername}?y=last`;
 
 const contributionGroup = new THREE.Group();
 
-// p5.js의 map 함수와 동일한 역할
 const mapRange = (value, inMin, inMax, outMin, outMax) => {
     return (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
 };
@@ -48,7 +54,6 @@ fetch(url)
         const spacing = 18;
         const boxSize = 15;
 
-        // 회색빛 초록색 컬러 스킴 (Three.js Material)
         const materials = [
             new THREE.MeshStandardMaterial({ color: 0x2d332d }), // Level 0
             new THREE.MeshStandardMaterial({ color: 0x3c503c }), // Level 1
@@ -66,40 +71,75 @@ fetch(url)
             totalWeeks = Math.max(totalWeeks, week);
 
             const height = (c.count > 0)
-                ? mapRange(c.count, 1, 20, 10, 200) // 1 이상일 때 최소 높이 10
-                : 1; // 바닥 타일의 높이
+                ? mapRange(c.count, 1, 20, 10, 200)
+                : 1;
 
             const geometry = new THREE.BoxGeometry(boxSize, height, boxSize);
             const material = materials[c.level] || materials[0];
             
-            const cube = new THREE.Mesh(geometry, material);
+            const cube = new THREE.Mesh(geometry, material.clone()); // 재질 복제하여 사용
             cube.position.set(week * spacing, height / 2, day * spacing);
             
+            // 마우스오버 시 사용할 데이터 저장
+            cube.userData = { date: c.date, count: c.count };
+
             contributionGroup.add(cube);
         }
 
-        // 전체 그리드를 중앙에 배치
         const gridWidth = totalWeeks * spacing;
-        const gridDepth = 6 * spacing; // 7 days (0-6)
+        const gridDepth = 6 * spacing;
         contributionGroup.position.set(-gridWidth / 2, 0, -gridDepth / 2);
 
         scene.add(contributionGroup);
     })
     .catch(error => console.error('Error fetching GitHub data:', error));
 
+// 6. 마우스오버 이벤트 핸들러
+function onMouseMove(event) {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
 
-// 5. 애니메이션 루프
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(contributionGroup.children);
+
+    if (intersects.length > 0) {
+        const newIntersected = intersects[0].object;
+
+        if (intersectedObject !== newIntersected) {
+            if (intersectedObject) {
+                intersectedObject.material.emissive.setHex(0x000000);
+            }
+            intersectedObject = newIntersected;
+            intersectedObject.material.emissive.setHex(0x555555); // 하이라이트 색상
+        }
+
+        tooltip.style.display = 'block';
+        tooltip.style.left = `${event.clientX + 10}px`;
+        tooltip.style.top = `${event.clientY + 10}px`;
+        tooltip.innerHTML = `<strong>${intersectedObject.userData.date}</strong><br>${intersectedObject.userData.count} contributions`;
+
+    } else {
+        if (intersectedObject) {
+            intersectedObject.material.emissive.setHex(0x000000);
+        }
+        intersectedObject = null;
+        tooltip.style.display = 'none';
+    }
+}
+
+// 7. 애니메이션 루프
 function animate() {
     requestAnimationFrame(animate);
-    controls.update(); // Damping을 위해 매 프레임 호출
+    controls.update();
     renderer.render(scene, camera);
 }
 
-// 6. 윈도우 리사이즈 핸들러
+// 8. 윈도우 이벤트 리스너
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
+window.addEventListener('mousemove', onMouseMove);
 
 animate();
