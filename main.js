@@ -98,6 +98,15 @@ function cleanupScene() {
 
 async function updateScene(username, startDate, endDate) {
     if (!font) { return; }
+
+    // Update URL query string
+    const params = new URLSearchParams();
+    params.set('username', username);
+    params.set('startDate', startDate);
+    params.set('endDate', endDate);
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({path: newUrl}, '', newUrl);
+
     cleanupScene();
 
     const theme = currentTheme === 'light' ? lightThemeColors : darkThemeColors;
