@@ -18,9 +18,16 @@
       <button id="1yBtn">1 Year</button>
       <button id="6mBtn">6 Months</button>
       <button id="3mBtn">3 Months</button>
+      <button id="exportBtn">Export as PNG</button>
     </div>
   </div>
-  <div id="tooltip" style="position: absolute; display: none; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 3px; pointer-events: none;"></div>
+  <div id="theme-toggle">
+    <label class="switch">
+      <input type="checkbox" id="themeToggleCheckbox">
+      <span class="slider round"></span>
+    </label>
+  </div>
+  <div id="tooltip" style="position: absolute; display: none; background: rgba(255, 255, 255, 0.9); color: #333; padding: 5px 10px; border-radius: 3px; pointer-events: none; border: 1px solid #ccc;"></div>
   <script type="importmap">
     {
       "imports": {
