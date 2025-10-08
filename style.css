@@ -112,10 +112,16 @@ body {
 
 #button-group {
   display: flex;
+  flex-direction: column;
   gap: 5px;
 }
 
-#button-group button {
+.button-row {
+  display: flex;
+  gap: 5px;
+}
+
+.button-row button {
   flex-grow: 1;
 }
 
