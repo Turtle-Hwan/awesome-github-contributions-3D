@@ -38,6 +38,7 @@ const y1Btn = document.getElementById('1yBtn');
 const m6Btn = document.getElementById('6mBtn');
 const m3Btn = document.getElementById('3mBtn');
 const exportBtn = document.getElementById('exportBtn');
+const shareBtn = document.getElementById('shareBtn');
 const themeToggleCheckbox = document.getElementById('themeToggleCheckbox');
 const tooltip = document.getElementById('tooltip');
 
@@ -57,7 +58,7 @@ scene.add(ambientLight, directionalLight);
 // --- Reusable Assets & State ---
 let font = null;
 const fontLoader = new FontLoader();
-let currentTheme = 'light';
+let currentTheme = 'dark';
 let intersectedGroup = null;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -104,6 +105,7 @@ async function updateScene(username, startDate, endDate) {
     params.set('username', username);
     params.set('startDate', startDate);
     params.set('endDate', endDate);
+    params.set('theme', currentTheme);
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.pushState({path: newUrl}, '', newUrl);
 
@@ -132,6 +134,7 @@ async function updateScene(username, startDate, endDate) {
         createNameplate(`Total: ${total}`, { size: 12, y: 110, z: 200, color: theme.totalPlate }, theme);
 
         const container = new THREE.Group();
+        container.name = 'buildingsContainer';
         container.userData.isDeletable = true;
         if (filtered.length === 0) { scene.add(container); return; }
 
@@ -196,15 +199,22 @@ function createNameplate(text, { size, y, z, color }, theme) {
 function onMouseMove(e) {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = - (e.clientY / window.innerHeight) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
-    const container = scene.children.find(c => c.userData.isDeletable && c.children.length > 0);
-    if (!container) return;
 
-    const intersects = raycaster.intersectObjects(container.children, true);
+    raycaster.setFromCamera(mouse, camera);
+    const buildingsContainer = scene.getObjectByName('buildingsContainer');
+    if (!buildingsContainer) {
+        tooltip.style.display = 'none';
+        return;
+    }
+
+    const intersects = raycaster.intersectObjects(buildingsContainer.children, true);
+
     let currentGroup = null;
     if (intersects.length > 0) {
         let obj = intersects[0].object;
-        while (obj.parent && !obj.userData.date) { obj = obj.parent; }
+        while (obj.parent && !obj.userData.date) {
+            obj = obj.parent;
+        }
         currentGroup = obj.userData.date ? obj : null;
     }
 
@@ -213,12 +223,14 @@ function onMouseMove(e) {
         intersectedGroup = currentGroup;
         setBuildingHighlight(intersectedGroup, 0x555555);
     }
-    
-    tooltip.style.display = intersectedGroup ? 'block' : 'none';
+
     if (intersectedGroup) {
+        tooltip.style.display = 'block';
         tooltip.style.left = `${e.clientX + 10}px`;
         tooltip.style.top = `${e.clientY + 10}px`;
         tooltip.innerHTML = `<strong>${intersectedGroup.userData.date}</strong><br>${intersectedGroup.userData.count} contributions`;
+    } else {
+        tooltip.style.display = 'none';
     }
 }
 
@@ -254,9 +266,11 @@ async function init() {
     const usernameFromQuery = params.get('username');
     const startDateFromQuery = params.get('startDate');
     const endDateFromQuery = params.get('endDate');
+    const themeFromQuery = params.get('theme');
 
     // Set initial values from query string or defaults
     usernameInput.value = usernameFromQuery || 'Turtle-Hwan';
+    currentTheme = themeFromQuery || 'dark'; // 'dark' as default
 
     if (startDateFromQuery && endDateFromQuery) {
         startDateInput.value = startDateFromQuery;
@@ -270,7 +284,7 @@ async function init() {
     font = await new Promise(r => fontLoader.load('https://unpkg.com/three@0.160.0/examples/fonts/helvetiker_regular.typeface.json', r));
 
     themeToggleCheckbox.checked = currentTheme === 'dark';
-    document.body.classList.add(`${currentTheme}-theme`);
+    document.body.className = `${currentTheme}-theme`;
     updateButton.addEventListener('click', () => updateScene(usernameInput.value, startDateInput.value, endDateInput.value));
     
     themeToggleCheckbox.addEventListener('change', () => {
@@ -295,6 +309,14 @@ async function init() {
         link.download = 'github-3d-grass.png';
         link.href = renderer.domElement.toDataURL('image/png');
         link.click();
+    });
+
+    shareBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert('URL copied to clipboard!');
+        }, () => {
+            alert('Failed to copy URL.');
+        });
     });
 
     await updateScene(usernameInput.value, startDateInput.value, endDateInput.value);
